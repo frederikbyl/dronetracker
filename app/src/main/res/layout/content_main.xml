@@ -20,10 +20,20 @@
 
     <com.wasp2.video.H264VideoView
         android:id="@+id/videoView"
+        android:layout_width="10px"
+        android:layout_height="10px"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        />
+
+
+    <ImageView
+        android:id="@+id/imageView"
         android:layout_width="640px"
         android:layout_height="368px"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintTop_toTopOf="parent"
         />
+
 
 </androidx.constraintlayout.widget.ConstraintLayout>

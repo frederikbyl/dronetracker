@@ -3,6 +3,11 @@ package com.wasp2;
 import android.Manifest;
 import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.Paint;
+import android.graphics.Rect;
 import android.os.Bundle;
 
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -21,6 +26,7 @@ import com.parrot.arsdk.ardiscovery.ARDiscoveryService;
 import com.wasp2.discovery.DroneDiscoverer;
 import com.wasp2.drone.MiniDrone;
 import com.wasp2.video.H264VideoView;
+import com.wasp2.video.ImageReadyCallback;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
@@ -31,6 +37,7 @@ import android.util.Log;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.ImageView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
@@ -50,7 +57,7 @@ import java.util.Set;
  * 4. make Move
  */
 
-public class MainActivity extends AppCompatActivity implements DroneDiscoverer.Listener {
+public class MainActivity extends AppCompatActivity implements DroneDiscoverer.Listener , ImageReadyCallback {
 
     /** List of runtime permission we need. */
     private static final String[] PERMISSIONS_NEEDED = new String[]{
@@ -100,6 +107,9 @@ public class MainActivity extends AppCompatActivity implements DroneDiscoverer.L
         setContentView(R.layout.activity_main);
 
         mVideoView = (H264VideoView) findViewById(R.id.videoView);
+
+        mVideoView.setImageDisplayCallBack(this);
+
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
 
@@ -309,6 +319,25 @@ public class MainActivity extends AppCompatActivity implements DroneDiscoverer.L
              */
         }
     };
+
+    public void drawImage(final Bitmap bitmap, final Rect rect) {
+
+        runOnUiThread(new Runnable() {
+
+            @Override
+            public void run() {
+                Canvas canvas = new Canvas(bitmap);
+                ImageView imageview = findViewById(R.id.imageView);
+                imageview.setImageBitmap(bitmap);
+
+                Paint paint = new Paint();
+                paint.setColor(Color.GREEN);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(5);
+                canvas.drawRect(rect, paint);
+            }
+        });
+    }
 
 
 }
