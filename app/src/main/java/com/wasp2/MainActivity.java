@@ -326,15 +326,47 @@ public class MainActivity extends AppCompatActivity implements DroneDiscoverer.L
 
             @Override
             public void run() {
-                Canvas canvas = new Canvas(bitmap);
-                ImageView imageview = findViewById(R.id.imageView);
-                imageview.setImageBitmap(bitmap);
 
+                int centerX = 640/2;
+                int centerY = 368/2;
+
+                Bitmap mutableBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+
+
+                Canvas canvas = new Canvas(mutableBitmap);
+                ImageView imageview = findViewById(R.id.imageView);
+                imageview.setImageBitmap(mutableBitmap);
                 Paint paint = new Paint();
-                paint.setColor(Color.GREEN);
+                paint.setColor(Color.RED);
                 paint.setStyle(Paint.Style.STROKE);
                 paint.setStrokeWidth(5);
-                canvas.drawRect(rect, paint);
+                Integer flag = 1;
+                Integer zero = 1;
+
+                if(rect!=null){
+                    Paint paint2 = new Paint();
+                    paint2.setColor(Color.GREEN);
+                    paint2.setStyle(Paint.Style.STROKE);
+                    paint2.setStrokeWidth(5);
+                    int centerRectX = (rect.right - rect.left)/2 + rect.left;
+                    int centerRectY = (rect.bottom - rect.top)/2 + rect.top;
+                    canvas.drawCircle(centerRectX, centerRectY, 5, paint2 );
+
+                    Integer diffX = (centerX - centerRectX)/10;
+                    Integer diffY = centerY - centerRectY;
+                    canvas.drawRect(rect, paint2);
+                    Log.i("diffX", diffX.toString());
+                    Log.i("diffY", diffY.toString());
+                    mMiniDrone.setFlag(flag.byteValue());
+                    mMiniDrone.setRoll(diffX.byteValue());
+
+
+                } else {
+                    mMiniDrone.setFlag(flag.byteValue());
+                    mMiniDrone.setRoll(zero.byteValue());
+                }
+                canvas.drawCircle(centerX, centerY, 5, paint );
+
             }
         });
     }

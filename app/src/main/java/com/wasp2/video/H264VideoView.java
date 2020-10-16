@@ -29,8 +29,13 @@ import androidx.annotation.NonNull;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.android.gms.tasks.Task;
 import com.google.mlkit.common.MlKitException;
 import com.google.mlkit.vision.common.InputImage;
+import com.google.mlkit.vision.face.Face;
+import com.google.mlkit.vision.face.FaceDetection;
+import com.google.mlkit.vision.face.FaceDetector;
+import com.google.mlkit.vision.face.FaceDetectorOptions;
 import com.google.mlkit.vision.objects.DetectedObject;
 import com.google.mlkit.vision.objects.ObjectDetection;
 import com.google.mlkit.vision.objects.ObjectDetector;
@@ -44,6 +49,7 @@ import com.wasp2.R;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Date;
 import java.util.List;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -57,7 +63,9 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
     private MediaCodec mMediaCodec;
     private Lock mReadyLock;
 
-    private MySurface mySurface;
+    private int counter = 0;
+
+    //private MySurface mySurface;
     private boolean mIsCodecConfigured = false;
 
     private ByteBuffer mSpsBuffer;
@@ -71,6 +79,7 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
     private SurfaceHolder mSurfaceHolder;
 
     private ObjectDetector mObjectDetector;
+    private FaceDetector mFaceDetector;
 
     private ImageReadyCallback mImageReadyCallback;
 
@@ -97,22 +106,32 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
 
         //OBJECT DETECTION////
 
+        FaceDetectorOptions realTimeOpts =
+                new FaceDetectorOptions.Builder()
+                        .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
+                        .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_NONE)
+                        .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
+                        .enableTracking()
+                        .build();
+
+        mFaceDetector = FaceDetection.getClient(realTimeOpts);
+
+
         // Live detection and tracking
         ObjectDetectorOptions options =
                 new ObjectDetectorOptions.Builder()
                         .setDetectorMode(ObjectDetectorOptions.STREAM_MODE).enableMultipleObjects()
                         .enableClassification()  // Optional
                         .build();
-
-
         mObjectDetector = ObjectDetection.getClient(options);
+
 
         /////////////////////
     }
 
 
     public void displayFrame(ARFrame frame) {
-
+        counter++;
 
         mReadyLock.lock();
 
@@ -156,56 +175,119 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
             try {
                 outIndex = mMediaCodec.dequeueOutputBuffer(info, 0);
                 Log.i("outIndex",Integer.toString(outIndex));
-                Image image = mMediaCodec.getOutputImage(outIndex);
-                //Log.i("FORMAT",Integer.toString(image.getFormat())); //YUV_420_888
+                if(outIndex>0 ){
 
+                    final Image image = mMediaCodec.getOutputImage(outIndex);
+                    //   ByteBuffer outputbytes = mMediaCodec.getOutputBuffer(outIndex);
+                    // int[] strides = new int[]{1,2,2};
 
-                final ByteBuffer yuvBytes = this.imageToByteBuffer(image);
+                    //final ByteBuffer yuvBytes = mMediaCodec.getOutputBuffer(outIndex);
 
-                // Convert YUV to RGB
+                    //final ByteBuffer yuvBytes = this.imageToByteBuffer(image);
 
-                final RenderScript rs = RenderScript.create(this.getContext());
+                    // final byte[] bytes =  YUV420toNV21(image);
+                    //ByteBuffer buf = ByteBuffer.wrap(bytes);
+                    long timeBegin = System.nanoTime();
 
-                final Bitmap        bitmap     = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.ARGB_8888);
-                final Allocation allocationRgb = Allocation.createFromBitmap(rs, bitmap);
+                    final Bitmap bitmap = getBitmap(image );
+                    Log.i("DATE3", Long.toString(System.nanoTime()-timeBegin));
+                    // Convert YUV to RGB
+/*
+                    final RenderScript rs = RenderScript.create(this.getContext());
 
-                final Allocation allocationYuv = Allocation.createSized(rs, Element.U8(rs), yuvBytes.array().length);
-                allocationYuv.copyFrom(yuvBytes.array());
+                    final Bitmap        bitmap     = Bitmap.createBitmap(image.getWidth(), image.getHeight(), Bitmap.Config.ARGB_8888);
+                    final Allocation allocationRgb = Allocation.createFromBitmap(rs, bitmap);
 
-                ScriptIntrinsicYuvToRGB scriptYuvToRgb = ScriptIntrinsicYuvToRGB.create(rs, Element.U8_4(rs));
-                scriptYuvToRgb.setInput(allocationYuv);
-                scriptYuvToRgb.forEach(allocationRgb);
+                    final Allocation allocationYuv = Allocation.createSized(rs, Element.U8(rs), yuvBytes.array().length);
+                    allocationYuv.copyFrom(yuvBytes.array());
 
-                allocationRgb.copyTo(bitmap);
-                Log.i("DRAWING", "DRAWING");
+                    ScriptIntrinsicYuvToRGB scriptYuvToRgb = ScriptIntrinsicYuvToRGB.create(rs, Element.U8_4(rs));
+                    scriptYuvToRgb.setInput(allocationYuv);
+                    scriptYuvToRgb.forEach(allocationRgb);
 
-
-
-                // Release
-
-
-
-                allocationYuv.destroy();
-                allocationRgb.destroy();
-                rs.destroy();
-
-
-
-
-                //
+                    allocationRgb.copyTo(bitmap);
+                    Log.i("DRAWING", "DRAWING");
 
 
 
-               InputImage inputImage = InputImage.fromBitmap(bitmap,0);
-                //InputImage inputImage = InputImage.fromMediaImage(image,0);
 
 
-                mObjectDetector.process(inputImage)
+                    // Release
+
+
+
+                    allocationYuv.destroy();
+                    allocationRgb.destroy();
+                    rs.destroy();
+
+*/
+
+
+
+
+
+                    //
+
+
+
+
+
+//                    InputImage inputImage = InputImage.fromMediaImage(image,0);
+
+
+
+                      int size = bitmap.getRowBytes() * bitmap.getHeight();
+                      ByteBuffer byteBuffer = ByteBuffer.allocate(size);
+                      bitmap.copyPixelsToBuffer(byteBuffer);
+                      byte []byteArray = byteBuffer.array();
+
+
+
+                    InputImage inputImage = InputImage.fromBitmap(bitmap,0);
+                    //MOET NV21 zijn of het gaat veel te traag!!!!!!!!!!!!!!!
+                    //InputImage inputImage = InputImage.fromByteArray(byteArray, VIDEO_WIDTH, VIDEO_HEIGHT, 0, ImageFormat.NV21);
+
+                    //FACEDETECTION TO SLOW
+
+                    Task<List<Face>> result =
+                            mFaceDetector.process(inputImage)
+                                    .addOnSuccessListener(
+                                            new OnSuccessListener<List<Face>>() {
+                                                @Override
+                                                public void onSuccess(List<Face> faces) {
+                                                    Log.i("NO FACE DETECTED", "no face");
+                                                    mImageReadyCallback.drawImage(bitmap,null);
+                                                    for(Face face : faces) {
+                                                        Log.i("FACE", face.getBoundingBox().toShortString());
+                                                        mImageReadyCallback.drawImage(bitmap,face.getBoundingBox() );
+                                                    }
+
+                                                }
+                                            })
+                                    .addOnFailureListener(
+                                            new OnFailureListener() {
+                                                @Override
+                                                public void onFailure(@NonNull Exception e) {
+                                                    // Task failed with an exception
+                                                    // ...
+                                                    Log.e("ERROR", e.getMessage()+" "+ Integer.toString( ((MlKitException)e).getErrorCode()));
+                                                }
+                                            });
+
+
+
+
+
+
+
+//                    mImageReadyCallback.drawImage(bitmap,null );
+               /* mObjectDetector.process(inputImage)
                         .addOnSuccessListener(
                                 new OnSuccessListener<List<DetectedObject>>() {
                                     @Override
                                     public void onSuccess(List<DetectedObject> detectedObjects) {
                                         Log.i("OBJECTS DETECTEDD", Integer.toString(detectedObjects.size()));
+
                                         for(DetectedObject object : detectedObjects) {
                                             Log.i("BOUNDINGBOX", Integer.toString(object.getBoundingBox().bottom));
                                             Log.i("LABELS", Integer.toString(object.getLabels().size()));
@@ -225,18 +307,30 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
                                     }
                                 });
 
+*/
+                    image.close();
+
+                }
 
 
 
                 while (outIndex >= 0) {
+
+
+
+
+
+
+
                     mMediaCodec.releaseOutputBuffer(outIndex, true);
                     outIndex = mMediaCodec.dequeueOutputBuffer(info, 0);
+
+
                 }
 
 
 
 
-                image.close();
             } catch (IllegalStateException e) {
                 Log.e(TAG, "Error while dequeue input buffer (outIndex)");
             }
@@ -253,7 +347,7 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
     public Bitmap getBitmap() {
         setDrawingCacheEnabled(true);
         buildDrawingCache(true);
-        final Bitmap bitmap = Bitmap.createBitmap( getDrawingCache() );
+        Bitmap bitmap = Bitmap.createBitmap( getDrawingCache() );
         setDrawingCacheEnabled(false);
         destroyDrawingCache();
         return bitmap;
@@ -394,8 +488,8 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
             final int widthShifted  = width >> shift;
             final int heightShifted = height >> shift;
 
-            //buffer.position(rowStride * (crop.top >> shift) + pixelStride * (crop.left >> shift));
-            buffer.position(rowStride * (crop.top ) + pixelStride * (crop.left >> shift ));
+            buffer.position(rowStride * (crop.top >> shift) + pixelStride * (crop.left >> shift));
+            //buffer.position(rowStride * (crop.top ) + pixelStride * (crop.left >> shift ));
 
             for (int row = 0; row < heightShifted; row++)
             {
@@ -427,5 +521,193 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
         }
 
         return output;
+    }
+
+
+    public static Bitmap getBitmap(ByteBuffer data, int [] strides) {
+        Long time = System.nanoTime();
+        data.rewind();
+        byte[] imageInBuffer = new byte[data.limit()];
+        data.get(imageInBuffer, 0, imageInBuffer.length);
+        try {
+
+            YuvImage image =
+                    new YuvImage(
+                            imageInBuffer, ImageFormat.NV21, VIDEO_WIDTH, VIDEO_HEIGHT, null);//testStride);
+            ByteArrayOutputStream stream = new ByteArrayOutputStream();
+            image.compressToJpeg(new Rect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT), 100, stream);
+
+            Bitmap bmp = BitmapFactory.decodeByteArray(stream.toByteArray(), 0, stream.size());
+
+            stream.close();
+            Log.i("DATE2", Long.toString(System.nanoTime()- time));
+            return bmp;
+        } catch (Exception e) {
+            Log.e("VisionProcessorBase", "Error: " + e.getMessage());
+        }
+        return null;
+    }
+
+
+    public static byte[] YUV420toNV21(Image image) {
+        Rect crop = image.getCropRect();
+        int format = image.getFormat();
+        int width = crop.width();
+        int height = crop.height();
+        Image.Plane[] planes = image.getPlanes();
+        byte[] data = new byte[width * height * ImageFormat.getBitsPerPixel(format) / 8];
+        byte[] rowData = new byte[planes[0].getRowStride()];
+
+        int channelOffset = 0;
+        int outputStride = 1;
+        for (int i = 0; i < planes.length; i++) {
+            switch (i) {
+                case 0:
+                    channelOffset = 0;
+                    outputStride = 1;
+                    break;
+                case 1:
+                    channelOffset = width * height + 1;
+                    outputStride = 2;
+                    break;
+                case 2:
+                    channelOffset = width * height;
+                    outputStride = 2;
+                    break;
+            }
+
+            ByteBuffer buffer = planes[i].getBuffer();
+            int rowStride = planes[i].getRowStride();
+            int pixelStride = planes[i].getPixelStride();
+
+            int shift = (i == 0) ? 0 : 1;
+            int w = width >> shift;
+            int h = height >> shift;
+            buffer.position(rowStride * (crop.top >> shift) + pixelStride * (crop.left >> shift));
+            for (int row = 0; row < h; row++) {
+                int length;
+                if (pixelStride == 1 && outputStride == 1) {
+                    length = w;
+                    buffer.get(data, channelOffset, length);
+                    channelOffset += length;
+                } else {
+                    length = (w - 1) * pixelStride + 1;
+                    buffer.get(rowData, 0, length);
+                    for (int col = 0; col < w; col++) {
+                        data[channelOffset] = rowData[col * pixelStride];
+                        channelOffset += outputStride;
+                    }
+                }
+                if (row < h - 1) {
+                    buffer.position(buffer.position() + rowStride - length);
+                }
+            }
+        }
+        return data;
+    }
+
+
+
+
+
+    /// FROM BITMAPUTILS
+    public static Bitmap getBitmap(final Image image) {
+        Long time  =System.nanoTime();
+
+        ByteBuffer nv21Buffer =
+                yuv420ThreePlanesToNV21(image.getPlanes(), 640, 368);
+        Log.i("DATE", Long.toString(System.nanoTime()-time));
+        Bitmap bitmap = getBitmap(nv21Buffer, null);
+        Log.i("DATE bitmap", Long.toString(System.nanoTime()-time));
+        return bitmap;
+
+    }
+
+    private static ByteBuffer yuv420ThreePlanesToNV21(
+            Image.Plane[] yuv420888planes, int width, int height) {
+        int imageSize = width * height;
+        byte[] out = new byte[imageSize + 2 * (imageSize / 4)];
+
+/*
+        if (areUVPlanesNV21(yuv420888planes, width, height)) {
+            Log.i("SCEN1", "SCEN1");
+            // Copy the Y values.
+            yuv420888planes[0].getBuffer().get(out, 0, imageSize);
+
+            ByteBuffer uBuffer = yuv420888planes[1].getBuffer();
+            ByteBuffer vBuffer = yuv420888planes[2].getBuffer();
+            // Get the first V value from the V buffer, since the U buffer does not contain it.
+            vBuffer.get(out, imageSize, 1);
+            // Copy the first U value and the remaining VU values from the U buffer.
+            uBuffer.get(out, imageSize + 1, 2 * imageSize / 4 - 1);
+        } else {*/
+            Log.i("SCEN2", "SCEN2");
+            // Fallback to copying the UV values one by one, which is slower but also works.
+            // Unpack Y.
+            unpackPlane(yuv420888planes[0], width, height, out, 0, 1);
+            // Unpack U.
+            unpackPlane(yuv420888planes[1], width, height, out, imageSize + 1, 2);
+            // Unpack V.
+            unpackPlane(yuv420888planes[2], width, height, out, imageSize, 2);
+       // }
+
+        return ByteBuffer.wrap(out);
+    }
+
+    private static boolean areUVPlanesNV21(Image.Plane[] planes, int width, int height) {
+        int imageSize = width * height;
+
+        ByteBuffer uBuffer = planes[1].getBuffer();
+        ByteBuffer vBuffer = planes[2].getBuffer();
+
+        // Backup buffer properties.
+        int vBufferPosition = vBuffer.position();
+        int uBufferLimit = uBuffer.limit();
+
+        // Advance the V buffer by 1 byte, since the U buffer will not contain the first V value.
+        vBuffer.position(vBufferPosition + 1);
+        // Chop off the last byte of the U buffer, since the V buffer will not contain the last U value.
+        uBuffer.limit(uBufferLimit - 1);
+
+        // Check that the buffers are equal and have the expected number of elements.
+        boolean areNV21 =
+                (vBuffer.remaining() == (2 * imageSize / 4 - 2)) && (vBuffer.compareTo(uBuffer) == 0);
+
+        // Restore buffers to their initial state.
+        vBuffer.position(vBufferPosition);
+        uBuffer.limit(uBufferLimit);
+
+        return areNV21;
+    }
+
+    private static void unpackPlane(
+            final Image.Plane plane, int width, int height, byte[] out, int offset, int pixelStride) {
+        Long time  =System.nanoTime();
+        ByteBuffer buffer = plane.getBuffer();
+        buffer.rewind();
+
+        // Compute the size of the current plane.
+        // We assume that it has the aspect ratio as the original image.
+        int numRow = (buffer.limit() + plane.getRowStride() - 1) / plane.getRowStride();
+        if (numRow == 0) {
+            return;
+        }
+        int scaleFactor = height / numRow;
+        int numCol = width / scaleFactor;
+
+        // Extract the data in the output buffer.
+        int outputPos = offset;
+        int rowStart = 0;
+        for (int row = 0; row < numRow; row++) {
+            int inputPos = rowStart;
+            for (int col = 0; col < numCol; col++) {
+                out[outputPos] = buffer.get(inputPos);
+                outputPos += pixelStride;
+                inputPos += plane.getPixelStride();
+            }
+            rowStart += plane.getRowStride();
+        }
+
+        Log.i("DATE4", Long.toString(System.nanoTime()- time));
     }
 }
