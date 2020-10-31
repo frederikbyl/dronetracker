@@ -131,9 +131,8 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
 
 
     public void displayFrame(ARFrame frame) {
-        counter++;
+       // mReadyLock.lock();
 
-        mReadyLock.lock();
 
         if ((mMediaCodec != null)) {
             if (mIsCodecConfigured) {
@@ -174,86 +173,65 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
             int outIndex;
             try {
                 outIndex = mMediaCodec.dequeueOutputBuffer(info, 0);
-                Log.i("outIndex",Integer.toString(outIndex));
-                if(outIndex>0 ){
+                //Log.i("outIndex",Integer.toString(outIndex));
+                if (outIndex > 0) {
 
-                    final Image image = mMediaCodec.getOutputImage(outIndex);
-                    long timeBegin = System.nanoTime();
 
-                    //final Bitmap bitmap = getBitmap(image );
+                    Image image = mMediaCodec.getOutputImage(outIndex);
+                    // long timeBegin = System.nanoTime();
+
+                    final Bitmap bitmap = getBitmap(image );
                     ByteBuffer nv21Buffer =
                             yuv420ThreePlanesToNV21(image.getPlanes(), 640, 368);
-                    Log.i("DATE3", Long.toString(System.nanoTime()-timeBegin));
+                    //Log.i("DATE3", Long.toString(System.nanoTime()-timeBegin));
+
+                    Rect rect = new Rect(); //public Rect(int left, int top, int right, int bottom)
+                    int total = 640*368;
+                    for(int x =0; x<640; x++) {
+                        for (int y=0; y<368; y++) {
+                            bitmap.getPixel(x,y);
+
+                        }
+                    }
+
 
                     //InputImage inputImage = InputImage.fromBitmap(bitmap,0);
                     //MOET NV21 zijn of het gaat veel te traag!!!!!!!!!!!!!!!
                     InputImage inputImage = InputImage.fromByteBuffer(nv21Buffer, VIDEO_WIDTH, VIDEO_HEIGHT, 0, ImageFormat.NV21);
-                    Log.i("COUNTER", Integer.toString(counter));
 
+                    //FACEDETECTION TO SLOW
 
-                        //FACEDETECTION TO SLOW
-
-                        Task<List<Face>> result =
-                                mFaceDetector.process(inputImage)
-                                        .addOnSuccessListener(
-                                                new OnSuccessListener<List<Face>>() {
-                                                    @Override
-                                                    public void onSuccess(List<Face> faces) {
-                                                        Log.i("NO FACE DETECTED", "no face");
-                                                        if (faces.size()==0){
-                                                            mImageReadyCallback.drawImage(null,null);
-                                                        }
-                                                        for(Face face : faces) {
-                                                            Log.i("FACE", face.getBoundingBox().toShortString());
-                                                            mImageReadyCallback.drawImage(null,face.getBoundingBox() );
-                                                        }
-
+                    final long time = System.nanoTime();
+                    Task<List<Face>> result =
+                            mFaceDetector.process(inputImage)
+                                    .addOnSuccessListener(
+                                            new OnSuccessListener<List<Face>>() {
+                                                @Override
+                                                public void onSuccess(List<Face> faces) {
+                                                    //Log.i("DATE6", Long.toString(System.nanoTime()- time));
+                                                    // Log.i("NO FACE DETECTED", "no face");
+                                                    if (faces.size() == 0) {
+                                                        mImageReadyCallback.drawImage(bitmap, null);
                                                     }
-                                                })
-                                        .addOnFailureListener(
-                                                new OnFailureListener() {
-                                                    @Override
-                                                    public void onFailure(@NonNull Exception e) {
-                                                        // Task failed with an exception
-                                                        // ...
-                                                        Log.e("ERROR", e.getMessage()+" "+ Integer.toString( ((MlKitException)e).getErrorCode()));
+                                                    for (Face face : faces) {
+                                                        //  Log.i("FACE", face.getBoundingBox().toShortString());
+                                                        mImageReadyCallback.drawImage(bitmap, face.getBoundingBox());
                                                     }
-                                                });
 
-
-
-//                    mImageReadyCallback.drawImage(bitmap,null );
-               /* mObjectDetector.process(inputImage)
-                        .addOnSuccessListener(
-                                new OnSuccessListener<List<DetectedObject>>() {
-                                    @Override
-                                    public void onSuccess(List<DetectedObject> detectedObjects) {
-                                        Log.i("OBJECTS DETECTEDD", Integer.toString(detectedObjects.size()));
-
-                                        for(DetectedObject object : detectedObjects) {
-                                            Log.i("BOUNDINGBOX", Integer.toString(object.getBoundingBox().bottom));
-                                            Log.i("LABELS", Integer.toString(object.getLabels().size()));
-                                            for (DetectedObject.Label label : object.getLabels()) {
-                                                Log.i("object", label.getText());
-                                            }
-                                            mImageReadyCallback.drawImage(bitmap,object.getBoundingBox() );
-
-                                        }
-                                    }
-                                })
-                        .addOnFailureListener(
-                                new OnFailureListener() {
-                                    @Override
-                                    public void onFailure(@NonNull Exception e) {
-                                        Log.i("ERROR",Integer.toString( ((MlKitException)e).getErrorCode()));
-                                    }
-                                });
-
-*/
+                                                }
+                                            })
+                                    .addOnFailureListener(
+                                            new OnFailureListener() {
+                                                @Override
+                                                public void onFailure(@NonNull Exception e) {
+                                                    // Task failed with an exception
+                                                    // ...
+                                                    Log.e("ERROR", e.getMessage() + " " + Integer.toString(((MlKitException) e).getErrorCode()));
+                                                }
+                                            });
                     image.close();
 
                 }
-
 
 
                 while (outIndex >= 0) {
@@ -268,10 +246,7 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
         }
 
 
-
-
-        mReadyLock.unlock();
-
+       // mReadyLock.unlock();
 
     }
 
@@ -475,7 +450,7 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
             // Copy the first U value and the remaining VU values from the U buffer.
             uBuffer.get(out, imageSize + 1, 2 * imageSize / 4 - 1);
         } else {*/
-            Log.i("SCEN2", "SCEN2");
+           // Log.i("SCEN2", "SCEN2");
             // Fallback to copying the UV values one by one, which is slower but also works.
             // Unpack Y.
             unpackPlane(yuv420888planes[0], width, height, out, 0, 1);
@@ -516,7 +491,7 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
 
     private static void unpackPlane(
             final Image.Plane plane, int width, int height, byte[] out, int offset, int pixelStride) {
-        Long time  =System.nanoTime();
+        //Long time  =System.nanoTime();
         ByteBuffer buffer = plane.getBuffer();
         buffer.rewind();
 
@@ -542,6 +517,6 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
             rowStart += plane.getRowStride();
         }
 
-        Log.i("DATE4", Long.toString(System.nanoTime()- time));
+        //Log.i("DATE4", Long.toString(System.nanoTime()- time));
     }
 }

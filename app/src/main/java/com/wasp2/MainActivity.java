@@ -59,6 +59,14 @@ import java.util.Set;
 
 public class MainActivity extends AppCompatActivity implements DroneDiscoverer.Listener , ImageReadyCallback {
 
+    private int errorX = 0;
+    private int errorY = 0;
+    private int previousX = 0;
+    private int previousY = 0;
+    private long lastDate=0;
+    int incrementalErrorX = 0;
+    int incrementalErrorY = 0;
+
     /** List of runtime permission we need. */
     private static final String[] PERMISSIONS_NEEDED = new String[]{
             Manifest.permission.WRITE_EXTERNAL_STORAGE,
@@ -322,16 +330,124 @@ public class MainActivity extends AppCompatActivity implements DroneDiscoverer.L
 
     public void drawImage(final Bitmap bitmap, final Rect rect) {
 
+
+        Runnable thread = new Runnable()
+        {
+            public void run()
+            {
+
+                Log.i("DRAW: ", Long.toString(System.nanoTime()-lastDate));
+                lastDate =System.nanoTime();
+                int centerX = 640 / 2;
+                int centerY = 368 / 2;
+
+
+                if (rect != null) {
+
+                    int distanceZ = rect.right - rect.left;
+                    int centerRectX = (rect.right - rect.left) / 2 + rect.left;
+                    int centerRectY = (rect.bottom - rect.top) / 2 + rect.top;
+                    int diffX = -1 * (centerX - centerRectX);
+                    int diffY = (centerY - centerRectY);
+                    errorX = diffX;
+                    errorY = diffY;
+
+                    incrementalErrorX = Math.abs(previousX)-Math.abs(errorX);
+                    incrementalErrorY = Math.abs(previousY)-Math.abs(errorY);
+
+                    previousX = errorX;
+                    previousY = errorY;
+                    int moveX = -15;
+                    int moveY = -15;
+
+                    if(incrementalErrorX<0) {
+                        moveX=-50;//incrementalErrorX/20;
+                    }
+                    if(incrementalErrorX<-50) {
+                        moveX=-100;//incrementalErrorX/20;
+                    }
+                    if(incrementalErrorY<0) {
+                        moveY=-30;//incrementalErrorY/20;
+                    }
+
+
+                    mMiniDrone.setFlag((byte) 1);
+                    if (diffX < -100) {
+                        Log.i("TURNING", "HARDLEFT");
+                        mMiniDrone.setRoll((byte) moveX);
+                        //Pause for 4 seconds
+
+
+                    } else if (diffX > -100 && diffX < 0) {
+                        Log.i("TURNING", "SOFTLEFT");
+                        // mMiniDrone.setRoll((byte) diffX);
+                        mMiniDrone.setRoll((byte) 0);
+
+                    } else if (diffX < 100 && diffX > 0) {
+                        Log.i("TURNING", "SOFTRIGHT");
+                        mMiniDrone.setRoll((byte) 0);
+
+                    } else if (diffX > 100) {
+                        Log.i("TURNING", "HARDRIGHT");
+                        mMiniDrone.setRoll((byte) -moveX);
+
+                        Log.i("TURNING", "0");
+                       // mMiniDrone.setRoll((byte) 0);
+
+
+                    } else {
+                        Log.i("TURNING", "0");
+                        mMiniDrone.setRoll((byte) 0);
+                    }
+
+
+                    if (diffY < -30) {
+                        mMiniDrone.setGaz((byte) moveY);
+                    } else if (diffY < 0 && diffY > -30) {
+                        mMiniDrone.setGaz((byte) diffY);
+                    } else if (diffY < 30 && diffY > 0) {
+                        mMiniDrone.setGaz((byte) diffY);
+                    } else if (diffY > 30) {
+                        mMiniDrone.setGaz((byte) -moveY);
+                    } else {
+                        mMiniDrone.setGaz((byte) 0);
+                    }
+
+
+                    if(distanceZ>100) {
+                        mMiniDrone.setPitch((byte)-20);
+                    } else if(distanceZ<50) {
+                        mMiniDrone.setPitch((byte)30);
+                    } else {
+                        mMiniDrone.setPitch((byte)0);
+                    }
+
+                } else {
+
+                    mMiniDrone.setFlag((byte) 1);
+                    mMiniDrone.setRoll((byte) 0);
+                    mMiniDrone.setGaz((byte) 0);
+                }
+            }
+        };
+
+        new Thread(thread).start();
+
+
+
+
+
+
         runOnUiThread(new Runnable() {
 
             @Override
             public void run() {
 
-                int centerX = 640/2;
-                int centerY = 368/2;
+                int centerX = 640 / 2;
+                int centerY = 368 / 2;
 
-                //Bitmap mutableBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
-                Bitmap mutableBitmap = Bitmap.createBitmap(640, 368, Bitmap.Config.ARGB_8888);
+                Bitmap mutableBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true);
+                //Bitmap mutableBitmap = Bitmap.createBitmap(640, 368, Bitmap.Config.ARGB_8888);
 
                 Canvas canvas = new Canvas(mutableBitmap);
                 ImageView imageview = findViewById(R.id.imageView);
@@ -340,10 +456,9 @@ public class MainActivity extends AppCompatActivity implements DroneDiscoverer.L
                 paint.setColor(Color.RED);
                 paint.setStyle(Paint.Style.STROKE);
                 paint.setStrokeWidth(5);
-                Integer flag = 1;
-                Integer zero = 0;
 
-                if(rect!=null){
+
+                if (rect != null) {
                     Paint paint2 = new Paint();
                     paint2.setColor(Color.GREEN);
                     paint2.setStyle(Paint.Style.STROKE);
@@ -354,63 +469,24 @@ public class MainActivity extends AppCompatActivity implements DroneDiscoverer.L
                     paint3.setStyle(Paint.Style.STROKE);
                     paint3.setStrokeWidth(1);
                     paint3.setTextSize(30);
-                    int centerRectX = (rect.right - rect.left)/2 + rect.left;
-                    int centerRectY = (rect.bottom - rect.top)/2 + rect.top;
-                    canvas.drawCircle(centerRectX, centerRectY, 5, paint2 );
-                    canvas.drawCircle(centerRectX, centerRectY, 1, paint2 );
 
-                    int diffX = -1*(centerX - centerRectX);
-                    int diffY = (centerY - centerRectY);
+                    int centerRectX = (rect.right - rect.left) / 2 + rect.left;
+                    int centerRectY = (rect.bottom - rect.top) / 2 + rect.top;
+                    canvas.drawCircle(centerRectX, centerRectY, 5, paint2);
+                    canvas.drawCircle(centerRectX, centerRectY, 1, paint2);
+
                     canvas.drawRect(rect, paint2);
-                    canvas.drawText(Integer.toString(diffX), 20,30, paint3);
-                    canvas.drawText(Integer.toString(diffY), 20,60, paint3);
-
-                    //MOET UIT DE UI THREAD
-                    mMiniDrone.setFlag((byte) 1);
-                    if(diffX<-20){
-                    //    Log.i("TURNING", "HARDLEFT");
-                        mMiniDrone.setRoll((byte) -50);
-                    } else if(diffX>-20 && diffX<0) {
-                      //  Log.i("TURNING", "SOFTLEFT");
-                        mMiniDrone.setRoll((byte) diffX);
-                    } else if (diffX<20 && diffX>0) {
-                       // Log.i("TURNING", "SOFTRIGHT");
-                        mMiniDrone.setRoll((byte) diffX);
-                    } else if (diffX>20) {
-                       // Log.i("TURNING", "HARDRIGHT");
-                        mMiniDrone.setRoll((byte) 50);
-                    } else {
-                       // Log.i("TURNING", "0");
-                        mMiniDrone.setRoll((byte) 0);
-                    }
+                    canvas.drawText(Integer.toString(incrementalErrorX), 20, 30, paint3);
+                    canvas.drawText(Integer.toString(incrementalErrorY), 20, 60, paint3);
 
 
+                    canvas.drawCircle(centerX, centerY, 5, paint);
 
-
-                   if(diffY<-20){
-                       mMiniDrone.setGaz((byte) -20);
-                   }else if(diffY<0 && diffY>-20) {
-                       mMiniDrone.setGaz((byte) diffY);
-                   } else if(diffY<20&& diffY>0) {
-                       mMiniDrone.setGaz((byte) diffY);
-                   } else if(diffY>20) {
-                       mMiniDrone.setGaz((byte) 20);
-                   } else {
-                       mMiniDrone.setGaz((byte)0);
-                   }
-
-
-                } else {
-
-
-                    mMiniDrone.setFlag((byte) 1);
-                    mMiniDrone.setRoll((byte) 0);
-                    mMiniDrone.setGaz((byte) 0);
                 }
-                canvas.drawCircle(centerX, centerY, 5, paint );
-
             }
         });
+
+
     }
 
 
