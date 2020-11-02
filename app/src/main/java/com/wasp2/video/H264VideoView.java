@@ -31,6 +31,10 @@ import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
 import com.google.mlkit.common.MlKitException;
+import com.google.mlkit.vision.barcode.Barcode;
+import com.google.mlkit.vision.barcode.BarcodeScanner;
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions;
+import com.google.mlkit.vision.barcode.BarcodeScanning;
 import com.google.mlkit.vision.common.InputImage;
 import com.google.mlkit.vision.face.Face;
 import com.google.mlkit.vision.face.FaceDetection;
@@ -80,6 +84,7 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
 
     private ObjectDetector mObjectDetector;
     private FaceDetector mFaceDetector;
+    private BarcodeScanner mScanner;
 
     private ImageReadyCallback mImageReadyCallback;
 
@@ -127,6 +132,14 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
 
 
         /////////////////////
+
+        BarcodeScannerOptions barOptions =
+                new BarcodeScannerOptions.Builder()
+                        .setBarcodeFormats(
+                                Barcode.FORMAT_QR_CODE)
+                        .build();
+
+        mScanner = BarcodeScanning.getClient();
     }
 
 
@@ -185,15 +198,6 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
                             yuv420ThreePlanesToNV21(image.getPlanes(), 640, 368);
                     //Log.i("DATE3", Long.toString(System.nanoTime()-timeBegin));
 
-                    Rect rect = new Rect(); //public Rect(int left, int top, int right, int bottom)
-                    int total = 640*368;
-                    for(int x =0; x<640; x++) {
-                        for (int y=0; y<368; y++) {
-                            bitmap.getPixel(x,y);
-
-                        }
-                    }
-
 
                     //InputImage inputImage = InputImage.fromBitmap(bitmap,0);
                     //MOET NV21 zijn of het gaat veel te traag!!!!!!!!!!!!!!!
@@ -202,6 +206,7 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
                     //FACEDETECTION TO SLOW
 
                     final long time = System.nanoTime();
+
                     Task<List<Face>> result =
                             mFaceDetector.process(inputImage)
                                     .addOnSuccessListener(
@@ -229,6 +234,12 @@ public class H264VideoView extends SurfaceView implements SurfaceHolder.Callback
                                                     Log.e("ERROR", e.getMessage() + " " + Integer.toString(((MlKitException) e).getErrorCode()));
                                                 }
                                             });
+
+
+
+
+
+
                     image.close();
 
                 }

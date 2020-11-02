@@ -416,7 +416,7 @@ public class MainActivity extends AppCompatActivity implements DroneDiscoverer.L
 
                     if(distanceZ>100) {
                         mMiniDrone.setPitch((byte)-20);
-                    } else if(distanceZ<50) {
+                    } else if(distanceZ<80) {
                         mMiniDrone.setPitch((byte)30);
                     } else {
                         mMiniDrone.setPitch((byte)0);
@@ -427,6 +427,7 @@ public class MainActivity extends AppCompatActivity implements DroneDiscoverer.L
                     mMiniDrone.setFlag((byte) 1);
                     mMiniDrone.setRoll((byte) 0);
                     mMiniDrone.setGaz((byte) 0);
+                    mMiniDrone.setPitch((byte)0);
                 }
             }
         };
